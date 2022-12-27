@@ -1,0 +1,43 @@
+from locale import currency
+import struct
+from typing import List
+from datetime import datetime, timedelta
+
+
+max_msg = 50
+MICROS_PER_SECOND = 1_000_000
+meg_len = 32
+
+def des_time(byte_sequence: bytes) -> datetime:
+    epoch = datetime(1970, 1, 1)
+    k = struct.unpack('>Q', byte_sequence)[0]
+    k = k / MICROS_PER_SECOND
+    return epoch + timedelta(seconds=k)
+
+def des_price(bytes_sequence: bytes) -> float:
+    
+    k = struct.unpack('<d', bytes_sequence)
+    return k[0]
+
+def unmarshal_quotes(byte_sequence: bytes) -> List[str]:
+    MSG_ARR = []  # List of quotes
+    L = len(byte_sequence) / 32
+    for x in range(int(L)):
+        MSG = ''
+        TS = des_time(byte_sequence[(0 + (x * meg_len)):(8 + (x * meg_len))])  #timestamp
+        currencyName = byte_sequence[(8 + (x * meg_len)):(
+                    14 + (x * meg_len))].decode("utf-8")
+        price = des_price(byte_sequence[(14 + (x * meg_len)):(
+                    22 + (x * meg_len))])
+
+        MSG += str(TS) + ' '
+        MSG += str(currencyName[0:3]) + ' '
+        MSG += str(currencyName[3:]) + ' '
+        MSG += str(price)
+        MSG_ARR.append(MSG)
+    return MSG_ARR
+
+def ser_add(HOST: str, PORT: int) -> bytes:   
+    Y = bytes(map(int, HOST.split('.')))
+    X = struct.pack('>H', PORT)
+    return Y + X
